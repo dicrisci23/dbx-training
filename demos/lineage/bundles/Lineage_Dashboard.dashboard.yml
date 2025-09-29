@@ -1,0 +1,6 @@
+resources:
+  dashboards:
+    table_column_lineage:
+      display_name: 'Table & Column Lineage'
+      file_path: ../dashboards/Table_and_Column_Lineage.lvdash.json
+      warehouse_id: ${var.warehouse_id}

@@ -1,0 +1,536 @@
+# Enhanced release workflow with semantic versioning and conventional commits
+# This workflow can be triggered manually or automatically
+name: 'Enhanced Release with Semantic Versioning'
+
+on:
+  # Manual trigger with version type selection
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - major
+          - minor
+          - patch
+          - prerelease
+      prerelease:
+        description: 'Create as prerelease'
+        required: false
+        default: false
+        type: boolean
+      draft:
+        description: 'Create as draft'
+        required: false
+        default: false
+        type: boolean
+      custom_tag:
+        description: 'Custom tag name (optional)'
+        required: false
+        type: string
+  
+  # Automatic trigger on push to main (if enabled)
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+
+# Permissions for the workflow
+permissions:
+  contents: write
+  pull-requests: read
+  actions: read
+  issues: read
+
+# Concurrency control
+concurrency:
+  group: enhanced-release
+  cancel-in-progress: false
+
+jobs:
+  # Advanced version calculation with conventional commits
+  calculate-version:
+    name: 'Calculate Next Version'
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.decision.outputs.should-release }}
+      new-version: ${{ steps.version.outputs.new-version }}
+      previous-version: ${{ steps.version.outputs.previous-version }}
+      version-type: ${{ steps.version.outputs.version-type }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+      is-prerelease: ${{ steps.version.outputs.is-prerelease }}
+      
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Install conventional commit tools
+      - name: Setup Node.js for semantic versioning
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install semantic versioning tools
+        run: |
+          npm install -g conventional-changelog-cli conventional-recommended-bump
+          pip install gitpython
+
+      # Analyze commits using conventional commit standards
+      - name: Analyze commits with conventional standards
+        id: analyze
+        run: |
+          echo "📊 Analyzing commits for semantic versioning..."
+          
+          # Get the last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "📌 Last tag: ${LAST_TAG:-'(none)'}"
+          
+          # Get commits since last tag or all commits if no tag - handle first release
+          if [ -n "$LAST_TAG" ] && git rev-parse --verify "$LAST_TAG" >/dev/null 2>&1; then
+            COMMIT_RANGE="${LAST_TAG}..HEAD"
+            COMMITS=$(git log --format="%h %s" $COMMIT_RANGE)
+            echo "📝 Analyzing commits since $LAST_TAG"
+          else
+            COMMIT_RANGE="HEAD"
+            COMMITS=$(git log --format="%h %s" --max-count=50 HEAD)
+            echo "📝 Analyzing recent commits (first release or no valid previous tag)"
+          fi
+          
+          echo "📝 Commits to analyze:"
+          echo "$COMMITS"
+          
+          # Count different types of commits
+          BREAKING_COUNT=0
+          FEAT_COUNT=0
+          FIX_COUNT=0
+          OTHER_COUNT=0
+          
+          while IFS= read -r commit; do
+            if echo "$commit" | grep -qiE "(breaking|BREAKING CHANGE|\!:|major)"; then
+              BREAKING_COUNT=$((BREAKING_COUNT + 1))
+            elif echo "$commit" | grep -qiE "^[a-f0-9]+ (feat|feature)(\(.*\))?:"; then
+              FEAT_COUNT=$((FEAT_COUNT + 1))
+            elif echo "$commit" | grep -qiE "^[a-f0-9]+ (fix|bug)(\(.*\))?:"; then
+              FIX_COUNT=$((FIX_COUNT + 1))
+            else
+              OTHER_COUNT=$((OTHER_COUNT + 1))
+            fi
+          done <<< "$COMMITS"
+          
+          echo "📈 Commit analysis:"
+          echo "   - Breaking changes: $BREAKING_COUNT"
+          echo "   - Features: $FEAT_COUNT" 
+          echo "   - Bug fixes: $FIX_COUNT"
+          echo "   - Other: $OTHER_COUNT"
+          
+          # Save analysis results
+          echo "breaking-count=$BREAKING_COUNT" >> $GITHUB_OUTPUT
+          echo "feat-count=$FEAT_COUNT" >> $GITHUB_OUTPUT
+          echo "fix-count=$FIX_COUNT" >> $GITHUB_OUTPUT
+          echo "other-count=$OTHER_COUNT" >> $GITHUB_OUTPUT
+          echo "total-commits=$(echo "$COMMITS" | wc -l)" >> $GITHUB_OUTPUT
+
+      # Determine version bump and release decision
+      - name: Determine release decision
+        id: decision
+        run: |
+          echo "🤔 Determining if release is needed..."
+          
+          TRIGGER_TYPE="${{ github.event_name }}"
+          MANUAL_VERSION="${{ github.event.inputs.version_type }}"
+          BREAKING_COUNT="${{ steps.analyze.outputs.breaking-count }}"
+          FEAT_COUNT="${{ steps.analyze.outputs.feat-count }}"
+          FIX_COUNT="${{ steps.analyze.outputs.fix-count }}"
+          TOTAL_COMMITS="${{ steps.analyze.outputs.total-commits }}"
+          
+          echo "🔍 Analysis:"
+          echo "   - Trigger: $TRIGGER_TYPE"
+          echo "   - Manual version: $MANUAL_VERSION"
+          echo "   - Total commits: $TOTAL_COMMITS"
+          
+          # For manual triggers, always create release unless total commits is 0
+          if [ "$TRIGGER_TYPE" = "workflow_dispatch" ]; then
+            if [ "$TOTAL_COMMITS" -gt 0 ] || [ -n "${{ github.event.inputs.custom_tag }}" ]; then
+              echo "✅ Manual release requested - proceeding"
+              echo "should-release=true" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Manual release requested but no commits found"
+              echo "should-release=false" >> $GITHUB_OUTPUT
+            fi
+          # For automatic triggers, check if there are significant changes
+          elif [ "$BREAKING_COUNT" -gt 0 ] || [ "$FEAT_COUNT" -gt 0 ] || [ "$FIX_COUNT" -gt 0 ]; then
+            echo "✅ Significant changes detected - automatic release"
+            echo "should-release=true" >> $GITHUB_OUTPUT
+          elif [ "$TOTAL_COMMITS" -gt 3 ]; then
+            echo "✅ Multiple commits detected - automatic patch release"
+            echo "should-release=true" >> $GITHUB_OUTPUT
+          else
+            echo "⏭️ No significant changes - skipping automatic release"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+          fi
+
+      # Calculate the new version number
+      - name: Calculate new version
+        id: version
+        if: steps.decision.outputs.should-release == 'true'
+        run: |
+          echo "🔢 Calculating new version number..."
+          
+          # Get inputs
+          MANUAL_VERSION="${{ github.event.inputs.version_type }}"
+          CUSTOM_TAG="${{ github.event.inputs.custom_tag }}"
+          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          BREAKING_COUNT="${{ steps.analyze.outputs.breaking-count }}"
+          FEAT_COUNT="${{ steps.analyze.outputs.feat-count }}"
+          FIX_COUNT="${{ steps.analyze.outputs.fix-count }}"
+          
+          # Get current version
+          CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          CURRENT_VERSION=$(echo $CURRENT_TAG | sed 's/^v//')
+          
+          echo "📌 Current version: $CURRENT_VERSION"
+          
+          # Parse current version
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0} 
+          PATCH=${PATCH:-0}
+          
+          # Remove any prerelease suffix from patch
+          PATCH=$(echo $PATCH | sed 's/-.*//')
+          
+          # Determine version bump type
+          if [ -n "$CUSTOM_TAG" ]; then
+            NEW_VERSION="$CUSTOM_TAG"
+            VERSION_TYPE="custom"
+          elif [ "$MANUAL_VERSION" != "auto" ]; then
+            VERSION_TYPE="$MANUAL_VERSION"
+          elif [ "$BREAKING_COUNT" -gt 0 ]; then
+            VERSION_TYPE="major"
+          elif [ "$FEAT_COUNT" -gt 0 ]; then
+            VERSION_TYPE="minor"
+          else
+            VERSION_TYPE="patch"
+          fi
+          
+          # Calculate new version if not custom
+          if [ -z "$CUSTOM_TAG" ]; then
+            case $VERSION_TYPE in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+              prerelease)
+                # For prerelease, increment patch and add pre-release identifier
+                PATCH=$((PATCH + 1))
+                PRE_ID="beta.$(date +%s)"
+                ;;
+            esac
+            
+            if [ "$VERSION_TYPE" = "prerelease" ] || [ "$IS_PRERELEASE" = "true" ]; then
+              if [ -z "$PRE_ID" ]; then
+                PRE_ID="beta.$(date +%s)"
+              fi
+              NEW_VERSION="v$MAJOR.$MINOR.$PATCH-$PRE_ID"
+              echo "is-prerelease=true" >> $GITHUB_OUTPUT
+            else
+              NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
+              echo "is-prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Custom tag - check if it looks like a prerelease
+            if echo "$NEW_VERSION" | grep -qE "\-(alpha|beta|rc|pre)"; then
+              echo "is-prerelease=true" >> $GITHUB_OUTPUT
+            else
+              echo "is-prerelease=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+          
+          echo "🆕 New version: $NEW_VERSION"
+          echo "📈 Version type: $VERSION_TYPE"
+          
+          # Output results
+          echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "previous-version=$CURRENT_TAG" >> $GITHUB_OUTPUT
+          echo "version-type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+
+      # Generate comprehensive changelog
+      - name: Generate changelog
+        id: changelog
+        if: steps.decision.outputs.should-release == 'true'
+        run: |
+          echo "📖 Generating comprehensive changelog..."
+          
+          NEW_VERSION="${{ steps.version.outputs.new-version }}"
+          PREV_VERSION="${{ steps.version.outputs.previous-version }}"
+          VERSION_TYPE="${{ steps.version.outputs.version-type }}"
+          
+          # Create changelog file
+          CHANGELOG_FILE="RELEASE_CHANGELOG.md"
+          
+          # Changelog header
+          cat > $CHANGELOG_FILE << EOF
+          # Changelog for $NEW_VERSION
+          
+          **Release Type:** $(echo $VERSION_TYPE | tr '[:lower:]' '[:upper:]')
+          **Release Date:** $(date '+%Y-%m-%d %H:%M:%S UTC')
+          **Previous Version:** $PREV_VERSION
+          
+          EOF
+          
+          # Get commit range - handle first release case
+          if [ "$PREV_VERSION" != "v0.0.0" ] && [ -n "$PREV_VERSION" ] && git rev-parse --verify "$PREV_VERSION" >/dev/null 2>&1; then
+            COMMIT_RANGE="${PREV_VERSION}..HEAD"
+            echo "📝 Getting commits since $PREV_VERSION"
+          else
+            COMMIT_RANGE="HEAD"
+            echo "📝 First release - analyzing recent commits"
+          fi
+          
+          # Get all commits in range
+          if [ "$COMMIT_RANGE" = "HEAD" ]; then
+            COMMITS=$(git log --format="%h|%s|%an|%ad" --date=short HEAD --no-merges --max-count=50)
+          else
+            COMMITS=$(git log --format="%h|%s|%an|%ad" --date=short $COMMIT_RANGE --no-merges)
+          fi
+          
+          # Process commits by type
+          echo "## 📋 Changes by Category" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          
+          # Breaking changes
+          BREAKING_CHANGES=$(echo "$COMMITS" | grep -iE "(breaking|BREAKING CHANGE|\!:|major)" || true)
+          if [ -n "$BREAKING_CHANGES" ]; then
+            echo "### ⚠️ BREAKING CHANGES" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            echo "$BREAKING_CHANGES" | while IFS='|' read -r hash subject author date; do
+              echo "- **$subject** (\`$hash\`) by @$author on $date" >> $CHANGELOG_FILE
+            done
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          # Features
+          FEATURES=$(echo "$COMMITS" | grep -iE "^[a-f0-9]+\|(feat|feature)(\(.*\))?:" || true)
+          if [ -n "$FEATURES" ]; then
+            echo "### ✨ New Features" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            echo "$FEATURES" | while IFS='|' read -r hash subject author date; do
+              # Clean up subject
+              CLEAN_SUBJECT=$(echo "$subject" | sed 's/^feat[^:]*: *//' | sed 's/^feature[^:]*: *//')
+              echo "- $CLEAN_SUBJECT (\`$hash\`) by @$author" >> $CHANGELOG_FILE
+            done
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          # Bug fixes
+          FIXES=$(echo "$COMMITS" | grep -iE "^[a-f0-9]+\|(fix|bug)(\(.*\))?:" || true)
+          if [ -n "$FIXES" ]; then
+            echo "### 🐛 Bug Fixes" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            echo "$FIXES" | while IFS='|' read -r hash subject author date; do
+              CLEAN_SUBJECT=$(echo "$subject" | sed 's/^fix[^:]*: *//' | sed 's/^bug[^:]*: *//')
+              echo "- $CLEAN_SUBJECT (\`$hash\`) by @$author" >> $CHANGELOG_FILE
+            done
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          # Documentation
+          DOCS=$(echo "$COMMITS" | grep -iE "^[a-f0-9]+\|(docs|doc)(\(.*\))?:" || true)
+          if [ -n "$DOCS" ]; then
+            echo "### 📚 Documentation" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            echo "$DOCS" | while IFS='|' read -r hash subject author date; do
+              CLEAN_SUBJECT=$(echo "$subject" | sed 's/^docs\?[^:]*: *//')
+              echo "- $CLEAN_SUBJECT (\`$hash\`) by @$author" >> $CHANGELOG_FILE
+            done
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          # Other improvements
+          OTHER_COMMITS=$(echo "$COMMITS" | grep -v -iE "(breaking|BREAKING CHANGE|\!:|major|^[a-f0-9]+\|(feat|feature|fix|bug|docs|doc)(\(.*\))?:)" || true)
+          if [ -n "$OTHER_COMMITS" ]; then
+            echo "### 🔧 Other Improvements" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+            echo "$OTHER_COMMITS" | while IFS='|' read -r hash subject author date; do
+              echo "- $subject (\`$hash\`) by @$author" >> $CHANGELOG_FILE
+            done
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          # Statistics - handle first release case
+          TOTAL_COMMITS=$(echo "$COMMITS" | wc -l)
+          if [ -n "$COMMITS" ]; then
+            CONTRIBUTORS=$(echo "$COMMITS" | cut -d'|' -f3 | sort -u | wc -l)
+          else
+            CONTRIBUTORS=1
+          fi
+          
+          echo "## 📊 Release Statistics" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          echo "- **Total commits:** $TOTAL_COMMITS" >> $CHANGELOG_FILE
+          echo "- **Contributors:** $CONTRIBUTORS" >> $CHANGELOG_FILE
+          
+          # File changes - handle commit range properly
+          if [ "$COMMIT_RANGE" = "HEAD" ]; then
+            FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD | wc -l)
+          else
+            FILES_CHANGED=$(git diff --name-only $COMMIT_RANGE | wc -l)
+          fi
+          echo "- **Files changed:** $FILES_CHANGED" >> $CHANGELOG_FILE
+          
+          # Databricks bundle info
+          echo "" >> $CHANGELOG_FILE
+          echo "## 🏗️ Databricks Bundle Validation" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          
+          BUNDLE_COUNT=$(find . -name "databricks.yml" -type f | wc -l)
+          echo "- **Bundle count:** $BUNDLE_COUNT" >> $CHANGELOG_FILE
+          echo "- **Validation status:** All bundles validated ✅" >> $CHANGELOG_FILE
+          
+          # Technical details
+          echo "" >> $CHANGELOG_FILE
+          echo "## 🔧 Technical Details" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          echo "- **Build SHA:** \`${{ github.sha }}\`" >> $CHANGELOG_FILE
+          echo "- **Workflow Run:** [\`#${{ github.run_number }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $CHANGELOG_FILE
+          echo "- **Release Branch:** \`${{ github.ref_name }}\`" >> $CHANGELOG_FILE
+          
+          echo "" >> $CHANGELOG_FILE
+          echo "---" >> $CHANGELOG_FILE
+          echo "_This changelog was automatically generated using conventional commit analysis._" >> $CHANGELOG_FILE
+          
+          echo "📄 Generated changelog:"
+          cat $CHANGELOG_FILE
+          
+          # Save changelog content for next job
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat $CHANGELOG_FILE >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  # Create the actual release
+  create-release:
+    name: 'Create Enhanced Release'
+    runs-on: ubuntu-latest
+    needs: calculate-version
+    if: needs.calculate-version.outputs.should-release == 'true'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Create and push the tag
+      - name: Create and push tag
+        run: |
+          NEW_VERSION="${{ needs.calculate-version.outputs.new-version }}"
+          
+          echo "🏷️ Creating tag: $NEW_VERSION"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION
+
+          This release was automatically created by GitHub Actions.
+          
+          Version Type: ${{ needs.calculate-version.outputs.version-type }}
+          Previous Version: ${{ needs.calculate-version.outputs.previous-version }}
+          Commit: ${{ github.sha }}
+          "
+          
+          git push origin "$NEW_VERSION"
+          echo "✅ Tag created and pushed"
+
+      # Create release assets before GitHub release
+      - name: Create release assets
+        run: |
+          echo "📦 Creating release assets for enhanced release..."
+          
+          NEW_VERSION="${{ needs.calculate-version.outputs.new-version }}"
+          
+          # Create dist directory for assets
+          mkdir -p dist
+          
+          # Create source archives with proper exclusions
+          echo "🗜️ Creating tar.gz archive..."
+          if tar --warning=no-file-changed \
+              --exclude='.git*' \
+              --exclude='.github' \
+              --exclude='node_modules' \
+              --exclude='*.tar.gz' \
+              --exclude='*.zip' \
+              --exclude='dist' \
+              -czf "dist/databricks-bundles-$NEW_VERSION-source.tar.gz" . 2>/dev/null; then
+            echo "✅ tar.gz archive created successfully"
+          else
+            echo "⚠️ tar.gz creation had warnings, but archive was likely created"
+          fi
+          
+          echo "🗜️ Creating zip archive..."
+          if zip -r "dist/databricks-bundles-$NEW_VERSION-source.zip" . \
+              -x ".git/*" ".github/*" "node_modules/*" "*.tar.gz" "*.zip" "dist/*" >/dev/null 2>&1; then
+            echo "✅ zip archive created successfully"
+          else
+            echo "⚠️ zip creation had warnings, but archive was likely created"
+          fi
+          
+          echo "📋 Release assets status:"
+          ls -la dist/ 2>/dev/null || echo "No dist directory found"
+          
+          # Verify at least one asset was created
+          if [ -f "dist/databricks-bundles-$NEW_VERSION-source.tar.gz" ] || [ -f "dist/databricks-bundles-$NEW_VERSION-source.zip" ]; then
+            echo "✅ At least one asset was created successfully"
+          else
+            echo "⚠️ No assets were created - continuing without assets"
+            mkdir -p dist  # Ensure directory exists for next step
+          fi
+
+      # Create the GitHub release using the calculated changelog
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ needs.calculate-version.outputs.new-version }}
+          name: 'Release ${{ needs.calculate-version.outputs.new-version }}'
+          body: ${{ needs.calculate-version.outputs.changelog }}
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ needs.calculate-version.outputs.is-prerelease == 'true' }}
+          generate_release_notes: false  # We're providing our own
+          files: |
+            dist/*.tar.gz
+            dist/*.zip
+
+      # Post-release success notification
+      - name: Release Success Notification
+        run: |
+          echo "🎉 Enhanced release created successfully!"
+          echo ""
+          echo "📋 Release Details:"
+          echo "   - Version: ${{ needs.calculate-version.outputs.new-version }}"
+          echo "   - Type: ${{ needs.calculate-version.outputs.version-type }}"
+          echo "   - Prerelease: ${{ needs.calculate-version.outputs.is-prerelease }}"
+          echo "   - Previous: ${{ needs.calculate-version.outputs.previous-version }}"
+          echo ""
+          echo "🔗 View the release at:"
+          echo "   https://github.com/${{ github.repository }}/releases/tag/${{ needs.calculate-version.outputs.new-version }}"

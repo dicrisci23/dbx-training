@@ -1,0 +1,16 @@
+# This is a Databricks asset bundle definition.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+bundle:
+  name: create_training_environment
+
+include:
+  - ./variables.yml
+  - ./bundles/uc_resources_bundle.yml
+  - ./bundles/copy_sample_data.job.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-86714883766816.16.azuredatabricks.net/

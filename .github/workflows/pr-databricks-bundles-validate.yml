@@ -1,0 +1,289 @@
+# This workflow validates all Databricks bundles on pull requests
+# Bundle validation is performed without deployment.
+name: 'Validate Databricks Bundles on PR'
+
+# Ensure that only a single job or workflow using the same concurrency group
+# runs at a time.
+concurrency: 1
+
+# Trigger this workflow whenever a pull request is opened against the repo's
+# main branch or an existing pull request's head branch is updated.
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pull-requests: write   # needed to post a PR comment
+  actions: read         # needed to access workflow/job metadata
+
+jobs:
+  # Find all databricks.yml files in the repository
+  discover-bundles:
+    name: 'Discover Databricks Bundles'
+    runs-on: ubuntu-latest
+    outputs:
+      bundles: ${{ steps.find-bundles.outputs.bundles }}
+      bundle-count: ${{ steps.find-bundles.outputs.bundle-count }}
+
+    steps:
+      # Check out this repo, so that this workflow can access it.
+      - uses: actions/checkout@v4
+
+      # Find all databricks.yml files
+      - name: Find Databricks bundles
+        id: find-bundles
+        run: |
+          echo "🔍 Searching for databricks.yml files..."
+          
+          # Find all databricks.yml files and get their directories
+          BUNDLE_DIRS=$(find . -name "databricks.yml" -type f | sed 's|/databricks.yml||' | sed 's|^\./||' | sort)
+          
+          # Convert to JSON array for matrix strategy
+          BUNDLES_JSON="["
+          FIRST=true
+          BUNDLE_COUNT=0
+          
+          for dir in $BUNDLE_DIRS; do
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              BUNDLES_JSON="$BUNDLES_JSON,"
+            fi
+            
+            # Extract bundle name from directory
+            BUNDLE_NAME=$(basename "$dir")
+            BUNDLES_JSON="$BUNDLES_JSON{\"path\":\"$dir\",\"name\":\"$BUNDLE_NAME\"}"
+            BUNDLE_COUNT=$((BUNDLE_COUNT + 1))
+            
+            echo "📦 Found bundle: $BUNDLE_NAME (path: $dir)"
+          done
+          
+          BUNDLES_JSON="$BUNDLES_JSON]"
+          
+          echo "bundles=$BUNDLES_JSON" >> $GITHUB_OUTPUT
+          echo "bundle-count=$BUNDLE_COUNT" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "📊 Summary: Found $BUNDLE_COUNT Databricks bundle(s)"
+          echo "🔧 Bundle matrix: $BUNDLES_JSON"
+
+  # Validate bundles without deployment
+  validate:
+    name: 'Validate: ${{ matrix.bundle.name }}'
+    runs-on: ubuntu-latest
+    needs: discover-bundles
+    if: needs.discover-bundles.outputs.bundle-count > 0
+    strategy:
+      fail-fast: false  # Continue with other bundles even if one fails
+      matrix:
+        bundle: ${{ fromJson(needs.discover-bundles.outputs.bundles) }}
+
+    steps:
+      # Check out this repo, so that this workflow can access it.
+      - uses: actions/checkout@v4
+
+      # Download the Databricks CLI.
+      # See https://github.com/databricks/setup-cli
+      - uses: databricks/setup-cli@main
+
+      # Validate the bundle configuration
+      - name: Validate bundle ${{ matrix.bundle.name }}
+        id: validate
+        run: |
+          cd "${{ matrix.bundle.path }}"
+          echo "🔄 Starting validation for bundle: ${{ matrix.bundle.name }}"
+          echo "📂 Bundle path: ${{ matrix.bundle.path }}"
+          
+          # Check if databricks.yml exists
+          if [ ! -f "databricks.yml" ]; then
+            echo "❌ databricks.yml not found in ${{ matrix.bundle.path }}"
+            exit 1
+          fi
+          
+          # Read bundle name from databricks.yml
+          BUNDLE_NAME=$(grep -E "^\s*name:" databricks.yml | head -1 | sed 's/.*name:\s*//' | tr -d '"' | tr -d "'")
+          echo "📋 Bundle name from config: $BUNDLE_NAME"
+          
+          # Capture detailed validation output
+          if VALIDATION_OUTPUT=$(databricks bundle validate --target dev 2>&1); then
+            echo "validation_result=success" >> $GITHUB_OUTPUT
+            echo "✅ Bundle validation successful for ${{ matrix.bundle.name }}"
+            
+            # Save success details for PR comment
+            echo "VALIDATION_SUCCESS_${{ matrix.bundle.name }}<<EOF" >> $GITHUB_ENV
+            echo "✅ **Bundle: ${{ matrix.bundle.name }}** (Path: \`${{ matrix.bundle.path }}\`)" >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+            echo "**Validation Details:**" >> $GITHUB_ENV
+            echo "- Target: dev" >> $GITHUB_ENV
+            echo "- Bundle name: $BUNDLE_NAME" >> $GITHUB_ENV
+            echo "- Bundle path: ${{ matrix.bundle.path }}" >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+            echo "**Validated Components:**" >> $GITHUB_ENV
+            echo "- Bundle configuration syntax ✅" >> $GITHUB_ENV
+            echo "- Target configuration ✅" >> $GITHUB_ENV
+            echo "- Include files resolution ✅" >> $GITHUB_ENV
+            echo "- Variables validation ✅" >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+            echo "**CLI Output:**" >> $GITHUB_ENV
+            echo "\`\`\`" >> $GITHUB_ENV
+            echo "$VALIDATION_OUTPUT" >> $GITHUB_ENV
+            echo "\`\`\`" >> $GITHUB_ENV
+            echo "---" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "validation_result=failed" >> $GITHUB_OUTPUT
+            echo "❌ Bundle validation failed for ${{ matrix.bundle.name }}"
+            
+            # Save failure details for PR comment
+            echo "VALIDATION_ERROR_${{ matrix.bundle.name }}<<EOF" >> $GITHUB_ENV
+            echo "❌ **Bundle: ${{ matrix.bundle.name }}** (Path: \`${{ matrix.bundle.path }}\`)" >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+            echo "**Error Details:**" >> $GITHUB_ENV
+            echo "\`\`\`" >> $GITHUB_ENV
+            echo "$VALIDATION_OUTPUT" >> $GITHUB_ENV
+            echo "\`\`\`" >> $GITHUB_ENV
+            echo "---" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            
+            exit 1
+          fi
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.SP_TOKEN }}
+          DATABRICKS_BUNDLE_ENV: dev
+
+  # Collect results and comment on PR
+  comment-results:
+    name: 'Comment validation results on PR'
+    runs-on: ubuntu-latest
+    needs: [discover-bundles, validate]
+    if: always() && needs.discover-bundles.outputs.bundle-count > 0
+    
+    steps:
+      # Check out this repo to access validation results
+      - uses: actions/checkout@v4
+      
+      # Download validation results from all jobs
+      - name: Download validation results
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        
+      # Comment on PR with aggregated results
+      - name: Comment on PR with validation results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const bundles = ${{ needs.discover-bundles.outputs.bundles }};
+            const bundleCount = ${{ needs.discover-bundles.outputs.bundle-count }};
+            
+            // Check job results
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            
+            const validateJobs = jobs.data.jobs.filter(job => job.name.startsWith('Validate:'));
+            const successCount = validateJobs.filter(job => job.conclusion === 'success').length;
+            const failureCount = validateJobs.filter(job => job.conclusion === 'failure').length;
+            
+            let title, emoji, status;
+            if (failureCount === 0) {
+              title = '✅ All Databricks Bundles Validation Successful';
+              emoji = '✅';
+              status = 'success';
+            } else if (successCount > 0) {
+              title = '⚠️ Databricks Bundles Validation Partially Failed';
+              emoji = '⚠️';
+              status = 'partial';
+            } else {
+              title = '❌ All Databricks Bundles Validation Failed';
+              emoji = '❌';
+              status = 'failed';
+            }
+            
+            // Build summary
+            const summary = [
+              `## ${title}`,
+              '',
+              `**Summary:** Validated ${bundleCount} Databricks bundle(s)`,
+              `- ${emoji} Successful: **${successCount}**`,
+              failureCount > 0 ? `- ❌ Failed: **${failureCount}**` : '',
+              '',
+              '**Bundle Results:**',
+              ''
+            ].filter(line => line !== '').join('\n');
+            
+            // Add individual bundle results
+            let bundleResults = '';
+            for (const job of validateJobs) {
+              const bundleName = job.name.replace('Validate: ', '');
+              const bundle = bundles.find(b => b.name === bundleName);
+              const bundlePath = bundle ? bundle.path : 'unknown';
+              
+              if (job.conclusion === 'success') {
+                bundleResults += `### ✅ ${bundleName}\n`;
+                bundleResults += `- **Path:** \`${bundlePath}\`\n`;
+                bundleResults += `- **Status:** Validation successful\n`;
+                bundleResults += `- **Job:** [View details](${job.html_url})\n\n`;
+              } else if (job.conclusion === 'failure') {
+                bundleResults += `### ❌ ${bundleName}\n`;
+                bundleResults += `- **Path:** \`${bundlePath}\`\n`;
+                bundleResults += `- **Status:** Validation failed\n`;
+                bundleResults += `- **Job:** [View details](${job.html_url})\n\n`;
+              } else {
+                bundleResults += `### ⏳ ${bundleName}\n`;
+                bundleResults += `- **Path:** \`${bundlePath}\`\n`;
+                bundleResults += `- **Status:** ${job.conclusion || 'In progress'}\n`;
+                bundleResults += `- **Job:** [View details](${job.html_url})\n\n`;
+              }
+            }
+            
+            const footer = [
+              '---',
+              '',
+              '**How to reproduce locally:**',
+              '',
+              '```bash',
+              '# Install the Databricks CLI',
+              'pip install databricks-cli',
+              '',
+              '# Navigate to each bundle directory and validate',
+            ];
+            
+            for (const bundle of bundles) {
+              footer.push(`cd ${bundle.path}`);
+              footer.push('databricks bundle validate --target dev');
+              footer.push('cd ..');
+              footer.push('');
+            }
+            
+            footer.push('```');
+            footer.push('');
+            footer.push('**Workflow Details:**');
+            footer.push(`- Run ID: [\`${{ github.run_id }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`);
+            footer.push(`- Commit: \`${{ github.sha }}\``);
+            footer.push(`- Branch: \`${{ github.head_ref }}\``);
+            footer.push('');
+            
+            if (status === 'success') {
+              footer.push('*All bundles are ready for deployment!* 🚀');
+            } else if (status === 'partial') {
+              footer.push('*Some bundles need attention before deployment.* ⚠️');
+            } else {
+              footer.push('*Please fix the validation errors before merging.* ❌');
+            }
+            
+            const body = [summary, bundleResults, footer.join('\n')].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body
+            });

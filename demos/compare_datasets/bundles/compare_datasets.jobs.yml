@@ -1,0 +1,121 @@
+resources:
+  jobs:
+    compare_datasets:
+      name: Compare Datasets
+
+      email_notifications:
+        on_failure:
+          - stefan.koch@altyca.ch
+
+      tasks:
+        - task_key: check_if_schemas_exists
+          notebook_task:
+            notebook_path: ../notebooks/check_schemas_exists.py
+
+        - task_key: if_schemas_exists
+          depends_on:
+            - task_key: check_if_schemas_exists
+          condition_task:
+            op: EQUAL_TO
+            left: "{{tasks.check_if_schemas_exists.values.schemas_exists}}"
+            right: "true"
+
+        - task_key: create_sample_datasets
+          depends_on:
+            - task_key: if_schemas_exists
+              outcome: "false"
+          notebook_task:
+            notebook_path: ../notebooks/create_test_data.py
+
+        - task_key: get_entities
+          depends_on:
+            - task_key: if_schemas_exists
+              outcome: "true"
+            - task_key: create_sample_datasets
+          run_if: AT_LEAST_ONE_SUCCESS
+          notebook_task:
+            notebook_path: ../notebooks/get_entities.py
+            base_parameters:
+              catalog: main
+
+        - task_key: for_each_entity_schema1_schema3
+          depends_on:
+            - task_key: get_entities
+          for_each_task:
+            inputs: "{{tasks.get_entities.values.entities}}"
+            concurrency: 4
+            task:
+              task_key: compare_schema1_schema3
+              notebook_task:
+                notebook_path: ../notebooks/compare_datasets.py
+                base_parameters:
+                  source_schema: main.schema1
+                  target_schema: main.schema3
+                  entity: "{{input}}"
+              min_retry_interval_millis: 900000
+              disable_auto_optimization: true
+
+        - task_key: for_each_entity_in_schema1_schema2
+          depends_on:
+            - task_key: get_entities
+          for_each_task:
+            inputs: "{{tasks.get_entities.values.entities}}"
+            concurrency: 4
+            task:
+              task_key: compare_schema1_schema2
+              notebook_task:
+                notebook_path: ../notebooks/compare_datasets.py
+                base_parameters:
+                  source_schema: main.schema1
+                  target_schema: main.schema2
+                  entity: "{{input}}"
+              min_retry_interval_millis: 900000
+              disable_auto_optimization: true
+
+        - task_key: for_each_entity_schema1_schema4
+          depends_on:
+            - task_key: get_entities
+          for_each_task:
+            inputs: "{{tasks.get_entities.values.entities}}"
+            concurrency: 4
+            task:
+              task_key: compare_schema1_schema4
+              notebook_task:
+                notebook_path: ../notebooks/compare_datasets.py
+                base_parameters:
+                  source_schema: main.schema1
+                  target_schema: main.schema4
+                  entity: "{{input}}"
+              min_retry_interval_millis: 900000
+              disable_auto_optimization: true
+
+        - task_key: if_clean_up
+          depends_on:
+            - task_key: for_each_entity_in_schema1_schema2
+            - task_key: for_each_entity_schema1_schema3
+            - task_key: for_each_entity_schema1_schema4
+          run_if: ALL_DONE
+          condition_task:
+            op: EQUAL_TO
+            left: "{{job.parameters.clean_up}}"
+            right: "true"
+
+        - task_key: delete_test_data
+          depends_on:
+            - task_key: if_clean_up
+              outcome: "true"
+          run_if: ALL_DONE
+          notebook_task:
+            notebook_path: ../notebooks/create_test_data.py
+
+      queue:
+        enabled: true
+
+      parameters:
+        - name: clean_up
+          default: "false"
+
+      performance_target: PERFORMANCE_OPTIMIZED
+
+      tags:
+        "schedule": "not_scheduled"

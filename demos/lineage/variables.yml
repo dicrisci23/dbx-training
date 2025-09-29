@@ -1,0 +1,13 @@
+variables:
+
+  default_catalog:
+    description: Standard catalog for Unity Catalog
+    default: training
+
+  environment_short_name:
+    description: Short name of the environment
+    default: dev
+
+  warehouse_id:
+    description: ID of a Warehouse
+    default: e0d0e3d44e81c2dd

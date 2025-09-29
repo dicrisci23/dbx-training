@@ -1,0 +1,15 @@
+resources:
+  pipelines:
+    lineage_ingestion:
+      name: "Lineage Ingestion"
+      configuration:
+        environment: ${var.environment_short_name}
+        default_catalog: ${var.default_catalog}
+      libraries:
+        - glob:
+            include: ../declarative_pipelines/**
+      catalog: ${var.default_catalog}
+      schema: monitoring
+      channel: CURRENT
+      serverless: true
+      photon: false

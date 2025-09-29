@@ -1,0 +1,1182 @@
+{
+  "datasets": [
+    {
+      "name": "cd97fbae",
+      "displayName": "table_lineage",
+      "queryLines": [
+        "SELECT * FROM altyca_demo.monitoring.table_lineage"
+      ]
+    },
+    {
+      "name": "0815edfb",
+      "displayName": "column_lineage",
+      "queryLines": [
+        "SELECT * FROM altyca_demo.monitoring.column_lineage"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "280ad766",
+      "displayName": "Table Lineage",
+      "layout": [
+        {
+          "widget": {
+            "name": "8111287c",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# Table Lineage"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "eb18ea37",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "stage_2",
+                      "expression": "`stage_2`"
+                    },
+                    {
+                      "name": "stage_1",
+                      "expression": "`stage_1`"
+                    },
+                    {
+                      "name": "stage_0",
+                      "expression": "`stage_0`"
+                    },
+                    {
+                      "name": "count(*)",
+                      "expression": "COUNT(`*`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "sankey",
+              "encodings": {
+                "value": {
+                  "fieldName": "count(*)",
+                  "displayName": "Count of Records"
+                },
+                "stages": [
+                  {
+                    "fieldName": "stage_2",
+                    "displayName": "stage_2"
+                  },
+                  {
+                    "fieldName": "stage_1",
+                    "displayName": "stage_1"
+                  },
+                  {
+                    "fieldName": "stage_0",
+                    "displayName": "stage_0"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 6,
+            "height": 14
+          }
+        },
+        {
+          "widget": {
+            "name": "1116c8be",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_0_table",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "0_table",
+                      "expression": "`0_table`"
+                    },
+                    {
+                      "name": "0_table_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "0_table",
+                    "displayName": "0_table",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_0_table"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table Target"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 4,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "99645823",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_1_table",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "1_table",
+                      "expression": "`1_table`"
+                    },
+                    {
+                      "name": "1_table_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "1_table",
+                    "displayName": "1_table",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_1_table"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table Middle"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 4,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "da391995",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_2_table",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "2_table",
+                      "expression": "`2_table`"
+                    },
+                    {
+                      "name": "2_table_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "2_table",
+                    "displayName": "2_table",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_2_table"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table Source"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 4,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "7f2e3797",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_0_schema",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "0_schema",
+                      "expression": "`0_schema`"
+                    },
+                    {
+                      "name": "0_schema_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "0_schema",
+                    "displayName": "0_schema",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_0_schema"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Schema Target"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "70a3f9d3",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_0_catalog",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "0_catalog",
+                      "expression": "`0_catalog`"
+                    },
+                    {
+                      "name": "0_catalog_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "0_catalog",
+                    "displayName": "0_catalog",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_0_catalog"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog Target"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "2c4a1bd6",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_1_schema",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "1_schema",
+                      "expression": "`1_schema`"
+                    },
+                    {
+                      "name": "1_schema_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "1_schema",
+                    "displayName": "1_schema",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_1_schema"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Schema Middle"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "f4c6f29a",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_1_catalog",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "1_catalog",
+                      "expression": "`1_catalog`"
+                    },
+                    {
+                      "name": "1_catalog_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "1_catalog",
+                    "displayName": "1_catalog",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_1_catalog"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog Middle"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "83f874d5",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_2_schema",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "2_schema",
+                      "expression": "`2_schema`"
+                    },
+                    {
+                      "name": "2_schema_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "2_schema",
+                    "displayName": "2_schema",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_2_schema"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Schema Source"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "190bb1d6",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_2_catalog",
+                "query": {
+                  "datasetName": "cd97fbae",
+                  "fields": [
+                    {
+                      "name": "2_catalog",
+                      "expression": "`2_catalog`"
+                    },
+                    {
+                      "name": "2_catalog_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "2_catalog",
+                    "displayName": "2_catalog",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f0581096191eaea2c7c038f8b97d28_2_catalog"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog Source"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    },
+    {
+      "name": "4de36c89",
+      "displayName": "Column Lineage",
+      "layout": [
+        {
+          "widget": {
+            "name": "bc442535",
+            "multilineTextboxSpec": {
+              "lines": [
+                "# Column Lineage"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "0c0d0974",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_0_table",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "0_table",
+                      "expression": "`0_table`"
+                    },
+                    {
+                      "name": "0_table_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "0_table",
+                    "displayName": "0_table",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_0_table"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table Target"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "fadc5e6e",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "stage_2_column",
+                      "expression": "`stage_2_column`"
+                    },
+                    {
+                      "name": "stage_1_column",
+                      "expression": "`stage_1_column`"
+                    },
+                    {
+                      "name": "stage_0_column",
+                      "expression": "`stage_0_column`"
+                    },
+                    {
+                      "name": "countdistinct(0_catalog)",
+                      "expression": "COUNT(DISTINCT `0_catalog`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "sankey",
+              "encodings": {
+                "value": {
+                  "fieldName": "countdistinct(0_catalog)",
+                  "displayName": "Count of Unique 0_catalog"
+                },
+                "stages": [
+                  {
+                    "fieldName": "stage_2_column",
+                    "displayName": "stage_2_column"
+                  },
+                  {
+                    "fieldName": "stage_1_column",
+                    "displayName": "stage_1_column"
+                  },
+                  {
+                    "fieldName": "stage_0_column",
+                    "displayName": "stage_0_column"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 6,
+            "height": 15
+          }
+        },
+        {
+          "widget": {
+            "name": "05ee8cc5",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_2_table",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "2_table",
+                      "expression": "`2_table`"
+                    },
+                    {
+                      "name": "2_table_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "2_table",
+                    "displayName": "2_table",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_2_table"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table Source"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "9a99e484",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_stage_2_column",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "stage_2_column",
+                      "expression": "`stage_2_column`"
+                    },
+                    {
+                      "name": "stage_2_column_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "stage_2_column",
+                    "displayName": "stage_2_column",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_stage_2_column"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Column Source"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "80e82f25",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_stage_0_column",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "stage_0_column",
+                      "expression": "`stage_0_column`"
+                    },
+                    {
+                      "name": "stage_0_column_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "stage_0_column",
+                    "displayName": "stage_0_column",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_stage_0_column"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Column Target"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "89767ef7",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_1_table",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "1_table",
+                      "expression": "`1_table`"
+                    },
+                    {
+                      "name": "1_table_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "1_table",
+                    "displayName": "1_table",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_1_table"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Table Middle"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "24f50112",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_stage_1_column",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "stage_1_column",
+                      "expression": "`stage_1_column`"
+                    },
+                    {
+                      "name": "stage_1_column_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "stage_1_column",
+                    "displayName": "stage_1_column",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_stage_1_column"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Column Middle"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "79c82865",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_2_schema",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "2_schema",
+                      "expression": "`2_schema`"
+                    },
+                    {
+                      "name": "2_schema_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "2_schema",
+                    "displayName": "2_schema",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_2_schema"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Schema Source"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "832638ac",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_2_catalog",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "2_catalog",
+                      "expression": "`2_catalog`"
+                    },
+                    {
+                      "name": "2_catalog_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "2_catalog",
+                    "displayName": "2_catalog",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_2_catalog"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog Source"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "446341a7",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_1_schema",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "1_schema",
+                      "expression": "`1_schema`"
+                    },
+                    {
+                      "name": "1_schema_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "1_schema",
+                    "displayName": "1_schema",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_1_schema"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Schema Middle"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "e8532e54",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_1_catalog",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "1_catalog",
+                      "expression": "`1_catalog`"
+                    },
+                    {
+                      "name": "1_catalog_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "1_catalog",
+                    "displayName": "1_catalog",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_1_catalog"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog Middle"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "e5232deb",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_0_schema",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "0_schema",
+                      "expression": "`0_schema`"
+                    },
+                    {
+                      "name": "0_schema_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "0_schema",
+                    "displayName": "0_schema",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_0_schema"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Schema Target"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "7532ab8c",
+            "queries": [
+              {
+                "name": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_0_catalog",
+                "query": {
+                  "datasetName": "0815edfb",
+                  "fields": [
+                    {
+                      "name": "0_catalog",
+                      "expression": "`0_catalog`"
+                    },
+                    {
+                      "name": "0_catalog_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "0_catalog",
+                    "displayName": "0_catalog",
+                    "queryName": "dashboards/01f0580687fe1154803a84a50cee14f1/datasets/01f05817d4d71299951165944823c2e1_0_catalog"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Catalog Target"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 1
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+resources:
+  jobs:
+    dim_date_time:
+      name: Shared Dimensions Date and Time
+
+      email_notifications:
+        on_failure:
+          - stefan.koch@altyca.ch
+
+      tasks:
+        - task_key: generate_dates
+          notebook_task:
+            notebook_path: ../notebooks/generate_dates.py
+
+        - task_key: create_dimensions
+          notebook_task:
+            notebook_path: ../notebooks/create_dim_date_time.py
+          depends_on:
+            - task_key: generate_dates
+              
+      tags:
+        "schedule": "not_scheduled"

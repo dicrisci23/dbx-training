@@ -1,0 +1,47 @@
+resources:
+  jobs:
+    lineage_daily:
+      name: "Lineage Daily"
+      email_notifications:
+        on_failure:
+          - stefan.koch@altyca.ch
+          - severin.lindenmann@altyca.ch
+
+      tasks:
+        - task_key: get_lineage_from_system_tables
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.lineage_ingestion.id}
+          run_if: ALL_SUCCESS
+
+        # this is code from another project
+        # - task_key: get_entities
+        #   depends_on:
+        #     - task_key: dataverse_raw_ingestion
+        #   notebook_task:
+        #     notebook_path: ../notebooks/01_Dataverse_Raw_to_Cleansed_get_Entities.ipynb
+
+        # - task_key: for_each_entity
+        #   depends_on:
+        #     - task_key: get_entities
+        #   for_each_task:
+        #     inputs: "{{tasks.get_entities.values.entities}}"
+        #     concurrency: 100
+        #     task:
+        #       task_key: for_each_entity_iteration
+        #       notebook_task:
+        #         notebook_path: ../notebooks/02_Dataverse_Raw_to_Cleansed_process_Entity.ipynb
+        #         base_parameters:
+        #           entity: "{{input}}"
+                  
+      queue:
+        enabled: true
+
+      performance_target: STANDARD
+
+      schedule:
+        quartz_cron_expression: 0 0 7 * * ?  # every day at 07:00
+        timezone_id: Europe/Amsterdam
+
+      tags:
+        "project": "platform"
+        "schedule": "daily"

@@ -1,0 +1,237 @@
+# Release Configuration Template
+#
+# This file defines the configuration for automatic releases.
+# Place this file in your repository root as .release-config.yml
+
+# Release automation settings
+automation:
+  # Enable automatic releases on push to main branch
+  auto_release: true
+  
+  # Branches that trigger automatic releases
+  release_branches:
+    - main
+    - master
+  
+  # Files/paths to ignore when determining if a release is needed
+  ignore_paths:
+    - "**.md"
+    - ".github/**"
+    - "docs/**"
+    - "LICENSE"
+    - ".gitignore"
+    - "*.txt"
+
+# Version calculation rules
+versioning:
+  # Version scheme: semantic (major.minor.patch) or calver (YYYY.MM.DD)
+  scheme: semantic
+  
+  # Starting version if no tags exist
+  initial_version: "1.0.0"
+  
+  # Prefix for version tags (e.g., "v" creates tags like v1.0.0)
+  tag_prefix: "v"
+  
+  # Rules for determining version bump from commit messages
+  bump_rules:
+    major:
+      - "BREAKING CHANGE"
+      - "breaking:"
+      - "major:"
+      - "!:"
+    minor:
+      - "feat:"
+      - "feature:"
+      - "add:"
+      - "new:"
+    patch:
+      - "fix:"
+      - "bug:"
+      - "patch:"
+      - "update:"
+      - "improve:"
+      - "refactor:"
+      - "chore:"
+
+# Release notes generation
+release_notes:
+  # Template for release notes
+  template: |
+    # Release {version}
+    
+    **Release Type:** {version_type}
+    **Release Date:** {release_date}
+    **Previous Version:** {previous_version}
+    
+    {changelog}
+    
+    ## 📦 Installation
+    
+    ```bash
+    git checkout {version}
+    ```
+    
+    ## 🏗️ Databricks Information
+    
+    This release includes {bundle_count} validated Databricks bundle(s).
+    All bundles are ready for deployment to your Databricks workspace.
+    
+    ---
+    
+    _This release was automatically generated._
+  
+  # Categories for organizing changes
+  categories:
+    breaking:
+      title: "⚠️ BREAKING CHANGES"
+      labels:
+        - "breaking"
+        - "major"
+        - "BREAKING CHANGE"
+    
+    features:
+      title: "✨ New Features"
+      labels:
+        - "feat"
+        - "feature"
+        - "enhancement"
+    
+    fixes:
+      title: "🐛 Bug Fixes"
+      labels:
+        - "fix"
+        - "bug"
+        - "bugfix"
+    
+    improvements:
+      title: "🔧 Improvements"
+      labels:
+        - "improvement"
+        - "refactor"
+        - "perf"
+        - "optimize"
+    
+    docs:
+      title: "📚 Documentation"
+      labels:
+        - "docs"
+        - "doc"
+        - "documentation"
+    
+    dependencies:
+      title: "📦 Dependencies"
+      labels:
+        - "deps"
+        - "dependencies"
+        - "update"
+    
+    other:
+      title: "🔧 Other Changes"
+      labels: []
+  
+  # Include pull request information
+  include_prs: true
+  
+  # Include contributor information
+  include_contributors: true
+  
+  # Maximum number of changes to include per category
+  max_changes_per_category: 50
+
+# GitHub release settings
+github_release:
+  # Create release as draft initially
+  draft: false
+  
+  # Mark release as prerelease
+  prerelease: false
+  
+  # Generate additional release notes from GitHub
+  generate_additional_notes: true
+  
+  # Assets to include in release
+  assets:
+    - pattern: "*.tar.gz"
+      label: "Source Code (tar.gz)"
+    - pattern: "*.zip"
+      label: "Source Code (zip)"
+
+# Notification settings
+notifications:
+  # Slack webhook URL (set as secret SLACK_WEBHOOK_URL)
+  slack:
+    enabled: false
+    channel: "#releases"
+    username: "Release Bot"
+    
+  # Discord webhook URL (set as secret DISCORD_WEBHOOK_URL)
+  discord:
+    enabled: false
+    
+  # Email notifications
+  email:
+    enabled: false
+    recipients: []
+
+# Quality gates
+quality_gates:
+  # Require all tests to pass before release
+  require_tests: true
+  
+  # Require bundle validation to pass
+  require_bundle_validation: true
+  
+  # Minimum number of approvals for manual releases
+  min_approvals: 1
+  
+  # Branch protection rules to check
+  check_branch_protection: true
+
+# Databricks-specific settings
+databricks:
+  # Validate all bundles before release
+  validate_bundles: true
+  
+  # Bundle validation target environment
+  validation_target: "dev"
+  
+  # Include bundle information in release notes
+  include_bundle_info: true
+  
+  # List of bundle directories to include in release notes
+  bundle_directories: "auto"  # "auto" to detect automatically
+
+# Advanced settings
+advanced:
+  # Custom commit message patterns (regex)
+  custom_patterns:
+    major: []
+    minor: []
+    patch: []
+  
+  # Skip release if only these file types changed
+  skip_patterns:
+    - "*.md"
+    - "*.txt"
+  
+  # Custom release note sections
+  custom_sections:
+    - name: "Migration Guide"
+      condition: "has_breaking_changes"
+      content: |
+        ## 🚨 Migration Guide
+        
+        This release contains breaking changes. Please review the changes above
+        and update your code accordingly.
+  
+  # Post-release actions
+  post_release:
+    # Create follow-up issue for next release planning
+    create_planning_issue: false
+    
+    # Update version in specific files
+    update_version_files: []
+    
+    # Trigger deployment workflow
+    trigger_deployment: false

@@ -1,0 +1,35 @@
+# This is a Databricks asset bundle definition.
+# See https://docs.databricks.com/dev-tools/bundles/index.html for documentation.
+## (See Databricks docs on CI/CD at https://docs.databricks.com/dev-tools/bundles/ci-cd.html.)
+bundle:
+  name: dbdemos
+
+include:
+  - ./variables.yml
+
+sync:
+  paths:
+    - .
+  
+targets:
+  dev:
+    mode: development
+    default: true
+    presets:
+      trigger_pause_status: PAUSED
+      tags:
+        environment: dev
+        deployment: dab
+    workspace:
+      host: https://adb-86714883766816.16.azuredatabricks.net/
+    variables:
+      default_catalog: altyca_demo
+
+  prd:
+    mode: production
+    workspace:
+      host: https://adb-86714883766816.16.azuredatabricks.net/
+      root_path: /${bundle.name}
+    variables:
+      default_catalog: altyca_demo
+      environment_short_name: prd

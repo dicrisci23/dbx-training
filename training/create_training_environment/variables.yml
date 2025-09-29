@@ -1,0 +1,25 @@
+variables:
+  # ===================================
+  # ENVIRONMENT CONFIGURATION
+  # ===================================
+  catalog_name:
+    description: "Name of the catalog to use for training environment"
+    default: training  # <- Change this for different environments
+  
+  # ===================================
+  # DO NOT CHANGE THE FOLLOWING VARIABLES
+  # ===================================
+  schemas:
+    description: "List of schemas to create - do not change"
+    default:
+      - bronze
+      - silver
+      - gold
+      - raw
+      - external
+      - landing
+      - sample
+      
+  sample_data_volume:
+    description: "Sample data volume name - do not change"
+    default: sample_data

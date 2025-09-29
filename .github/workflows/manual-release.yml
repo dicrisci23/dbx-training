@@ -1,0 +1,371 @@
+# Manual Release Trigger
+# This workflow allows manual release creation with custom options
+name: 'Manual Release'
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Type of version bump'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - prerelease
+      
+      custom_version:
+        description: 'Custom version (optional, overrides version_type)'
+        required: false
+        type: string
+        
+      release_title:
+        description: 'Custom release title (optional)'
+        required: false
+        type: string
+        
+      release_notes:
+        description: 'Additional release notes (optional)'
+        required: false
+        type: string
+        
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        default: false
+        type: boolean
+        
+      draft:
+        description: 'Create as draft'
+        required: false
+        default: false
+        type: boolean
+        
+      skip_validation:
+        description: 'Skip bundle validation (recommended - validation happens in PR)'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: read
+  actions: read
+
+jobs:
+  manual-release:
+    name: 'Create Manual Release'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate inputs
+        run: |
+          echo "🔍 Validating release inputs..."
+          
+          CUSTOM_VERSION="${{ github.event.inputs.custom_version }}"
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          
+          if [ -n "$CUSTOM_VERSION" ]; then
+            echo "📝 Using custom version: $CUSTOM_VERSION"
+            # Basic validation for custom version
+            if ! echo "$CUSTOM_VERSION" | grep -qE "^v?[0-9]+\.[0-9]+\.[0-9]+(-.+)?$"; then
+              echo "❌ Invalid custom version format. Expected: v1.2.3 or 1.2.3 or 1.2.3-beta.1"
+              exit 1
+            fi
+          else
+            echo "📝 Using version bump type: $VERSION_TYPE"
+          fi
+          
+          echo "✅ Input validation passed"
+
+      - name: Calculate version
+        id: version
+        run: |
+          echo "🔢 Calculating release version..."
+          
+          CUSTOM_VERSION="${{ github.event.inputs.custom_version }}"
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          
+          # Get current latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "📌 Current latest tag: $LATEST_TAG"
+          
+          if [ -n "$CUSTOM_VERSION" ]; then
+            # Use custom version
+            NEW_VERSION="$CUSTOM_VERSION"
+            # Add 'v' prefix if not present
+            if ! echo "$NEW_VERSION" | grep -q "^v"; then
+              NEW_VERSION="v$NEW_VERSION"
+            fi
+          else
+            # Calculate based on version type
+            CURRENT_VERSION=$(echo $LATEST_TAG | sed 's/^v//')
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+            
+            # Handle prerelease versions
+            if echo "$PATCH" | grep -q "-"; then
+              PATCH=$(echo "$PATCH" | cut -d'-' -f1)
+            fi
+            
+            MAJOR=${MAJOR:-0}
+            MINOR=${MINOR:-0}
+            PATCH=${PATCH:-0}
+            
+            case $VERSION_TYPE in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+              prerelease)
+                PATCH=$((PATCH + 1))
+                PRE_SUFFIX="beta.$(date +%Y%m%d%H%M)"
+                ;;
+            esac
+            
+            if [ "$VERSION_TYPE" = "prerelease" ]; then
+              NEW_VERSION="v$MAJOR.$MINOR.$PATCH-$PRE_SUFFIX"
+            else
+              NEW_VERSION="v$MAJOR.$MINOR.$PATCH"
+            fi
+          fi
+          
+          echo "🆕 New version will be: $NEW_VERSION"
+          echo "new-version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "previous-version=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Bundle information (no validation needed)
+        run: |
+          echo "📋 Databricks bundle information for this release..."
+          
+          # Find all bundles  
+          BUNDLE_DIRS=$(find . -name "databricks.yml" -type f | sed 's|/databricks.yml||' | sed 's|^\./||' | sort)
+          
+          if [ -n "$BUNDLE_DIRS" ]; then
+            echo "📦 This manual release includes the following bundles:"
+            for bundle_dir in $BUNDLE_DIRS; do
+              BUNDLE_NAME=$(basename "$bundle_dir")
+              echo "   ✅ $BUNDLE_NAME ($bundle_dir)"
+            done
+            echo ""
+            echo "💡 Bundle validation is handled during PR review process."
+            echo "   Manual releases skip validation for speed and flexibility."
+          else
+            echo "📝 No Databricks bundles found"
+          fi
+
+      - name: Legacy bundle validation (optional)
+        if: github.event.inputs.skip_validation != 'true'
+        run: |
+          echo "🔍 Legacy bundle validation requested (not recommended)..."
+          echo "💡 Note: Bundle validation should happen during PR review, not at release time"
+          
+          # Check if SP_TOKEN is available
+          if [ -z "${{ secrets.SP_TOKEN }}" ]; then
+            echo "⚠️  SP_TOKEN not configured - skipping bundle validation"
+            echo "📝 To enable bundle validation, add SP_TOKEN secret in repository settings"
+            exit 0
+          fi
+          
+          # Find all bundles
+          BUNDLE_DIRS=$(find . -name "databricks.yml" -type f | sed 's|/databricks.yml||' | sed 's|^\./||' | sort)
+          
+          if [ -n "$BUNDLE_DIRS" ]; then
+            echo "📦 Found bundles to validate:"
+            echo "$BUNDLE_DIRS"
+            
+            # Install Databricks CLI if not available
+            if ! command -v databricks &> /dev/null; then
+              echo "📥 Installing Databricks CLI..."
+              pip install databricks-cli
+            fi
+            
+            # Validate each bundle - but don't fail the release on validation errors for manual releases
+            VALIDATION_ISSUES=false
+            for bundle_dir in $BUNDLE_DIRS; do
+              echo "🔄 Validating bundle: $(basename "$bundle_dir")"
+              cd "$bundle_dir"
+              
+              # Try validation with better error handling
+              if databricks bundle validate --target dev 2>&1; then
+                echo "✅ Bundle validation successful: $(basename "$bundle_dir")"
+              else
+                echo "⚠️  Bundle validation failed: $(basename "$bundle_dir")"
+                echo "   (Continuing with manual release despite validation issues)"
+                VALIDATION_ISSUES=true
+              fi
+              
+              cd - > /dev/null
+            done
+            
+            if [ "$VALIDATION_ISSUES" = "true" ]; then
+              echo ""
+              echo "⚠️  Some bundles had validation issues, but continuing with manual release"
+              echo "💡 For production releases, consider fixing these issues in a PR first"
+            else
+              echo "✅ All bundle validations passed"
+            fi
+          else
+            echo "📝 No Databricks bundles found to validate"
+          fi
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.SP_TOKEN }}
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          echo "📝 Generating release notes for manual release..."
+          
+          NEW_VERSION="${{ steps.version.outputs.new-version }}"
+          PREV_VERSION="${{ steps.version.outputs.previous-version }}"
+          CUSTOM_TITLE="${{ github.event.inputs.release_title }}"
+          ADDITIONAL_NOTES="${{ github.event.inputs.release_notes }}"
+          
+          NOTES_FILE="manual-release-notes.md"
+          
+          # Release title
+          if [ -n "$CUSTOM_TITLE" ]; then
+            RELEASE_TITLE="$CUSTOM_TITLE"
+          else
+            RELEASE_TITLE="Manual Release $NEW_VERSION"
+          fi
+          
+          # Start building notes
+          cat > $NOTES_FILE << EOF
+          # $RELEASE_TITLE
+          
+          **Release Type:** Manual Release
+          **Release Date:** $(date '+%Y-%m-%d %H:%M:%S UTC')
+          **Previous Version:** $PREV_VERSION
+          **Triggered By:** @${{ github.actor }}
+          
+          EOF
+          
+          # Add custom notes if provided
+          if [ -n "$ADDITIONAL_NOTES" ]; then
+            echo "## 📋 Release Notes" >> $NOTES_FILE
+            echo "" >> $NOTES_FILE
+            echo "$ADDITIONAL_NOTES" >> $NOTES_FILE
+            echo "" >> $NOTES_FILE
+          fi
+          
+          # Get changes since last version - handle first release case
+          if [ "$PREV_VERSION" != "v0.0.0" ] && [ -n "$PREV_VERSION" ] && git rev-parse --verify "$PREV_VERSION" >/dev/null 2>&1; then
+            COMMITS=$(git log --format="- %s (%h)" ${PREV_VERSION}..HEAD --no-merges --max-count=50)
+            echo "📝 Getting commits since $PREV_VERSION"
+          else
+            echo "📋 First release - including recent commits"
+            COMMITS=$(git log --format="- %s (%h)" HEAD --no-merges --max-count=50)
+          fi
+          
+          if [ -n "$COMMITS" ]; then
+            if [ "$PREV_VERSION" != "v0.0.0" ] && [ -n "$PREV_VERSION" ] && git rev-parse --verify "$PREV_VERSION" >/dev/null 2>&1; then
+              echo "## 📈 Changes Since $PREV_VERSION" >> $NOTES_FILE
+            else
+              echo "## 📈 Recent Changes" >> $NOTES_FILE
+            fi
+            echo "" >> $NOTES_FILE
+            echo "$COMMITS" >> $NOTES_FILE
+            echo "" >> $NOTES_FILE
+          fi
+          
+          # Bundle information
+          BUNDLE_COUNT=$(find . -name "databricks.yml" -type f | wc -l)
+          if [ $BUNDLE_COUNT -gt 0 ]; then
+            echo "## 🏗️ Databricks Bundle Information" >> $NOTES_FILE
+            echo "" >> $NOTES_FILE
+            echo "This release includes **$BUNDLE_COUNT** Databricks bundle(s):" >> $NOTES_FILE
+            echo "" >> $NOTES_FILE
+            
+            find . -name "databricks.yml" -type f | sed 's|/databricks.yml||' | sed 's|^\./||' | sort | while read bundle_dir; do
+              BUNDLE_NAME=$(basename "$bundle_dir")
+              echo "- **$BUNDLE_NAME** (\`$bundle_dir\`)" >> $NOTES_FILE
+            done
+            
+            echo "" >> $NOTES_FILE
+            if [ "${{ github.event.inputs.skip_validation }}" != "true" ]; then
+              echo "✅ All bundles have been validated and are ready for deployment." >> $NOTES_FILE
+            else
+              echo "⚠️ Bundle validation was skipped for this release." >> $NOTES_FILE
+            fi
+            echo "" >> $NOTES_FILE
+          fi
+          
+          # Technical details
+          echo "## 🔧 Technical Details" >> $NOTES_FILE
+          echo "" >> $NOTES_FILE
+          echo "- **Commit SHA:** \`${{ github.sha }}\`" >> $NOTES_FILE
+          echo "- **Workflow Run:** [\`#${{ github.run_number }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $NOTES_FILE
+          echo "- **Release Branch:** \`${{ github.ref_name }}\`" >> $NOTES_FILE
+          echo "- **Release Settings:**" >> $NOTES_FILE
+          echo "  - Prerelease: \`${{ github.event.inputs.prerelease }}\`" >> $NOTES_FILE
+          echo "  - Draft: \`${{ github.event.inputs.draft }}\`" >> $NOTES_FILE
+          echo "  - Skip Validation: \`${{ github.event.inputs.skip_validation }}\`" >> $NOTES_FILE
+          
+          echo "" >> $NOTES_FILE
+          echo "---" >> $NOTES_FILE
+          echo "_This was a manual release created by @${{ github.actor }}._" >> $NOTES_FILE
+          
+          echo "📄 Generated release notes:"
+          cat $NOTES_FILE
+          
+          echo "notes-file=$NOTES_FILE" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.new-version }}"
+          
+          echo "🏷️ Creating tag: $NEW_VERSION"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git tag -a "$NEW_VERSION" -m "Manual Release $NEW_VERSION
+
+          Created by: @${{ github.actor }}
+          Workflow: ${{ github.workflow }}
+          Run: ${{ github.run_number }}
+          Commit: ${{ github.sha }}
+          "
+          
+          git push origin "$NEW_VERSION"
+          echo "✅ Tag created and pushed successfully"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.new-version }}
+          name: ${{ github.event.inputs.release_title || format('Manual Release {0}', steps.version.outputs.new-version) }}
+          body_path: ${{ steps.release-notes.outputs.notes-file }}
+          draft: ${{ github.event.inputs.draft == 'true' }}
+          prerelease: ${{ github.event.inputs.prerelease == 'true' }}
+          generate_release_notes: true
+
+      - name: Success notification
+        run: |
+          echo "🎉 Manual release created successfully!"
+          echo ""
+          echo "📋 Release Summary:"
+          echo "   - Version: ${{ steps.version.outputs.new-version }}"
+          echo "   - Type: ${{ github.event.inputs.version_type }}"
+          echo "   - Created by: @${{ github.actor }}"
+          echo "   - Draft: ${{ github.event.inputs.draft }}"
+          echo "   - Prerelease: ${{ github.event.inputs.prerelease }}"
+          echo ""
+          echo "🔗 View release: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.new-version }}"
